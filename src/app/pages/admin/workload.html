@@ -1,0 +1,136 @@
+<app-admin-layout>
+  <div class="fade-up">
+    <div class="mb-6">
+      <h2 class="text-3xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        Kitchen Workload
+      </h2>
+      <p class="text-sm mt-1" style="color: #9B7B5A">
+        Hourly order flow and category-level prep time baselines. Individual cook performance is not tracked.
+      </p>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      @for (s of stats; track s.label) {
+        <div class="rounded border p-4 text-center" style="background: #FFF8EE; border-color: #C4A882">
+          <span class="text-2xl block mb-1">{{ s.icon }}</span>
+          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">{{ s.value }}</p>
+          <p class="text-xs font-bold" style="color: #2C1810">{{ s.label }}</p>
+          <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ s.sub }}</p>
+        </div>
+      }
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Hourly bar chart -->
+      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+        <div class="px-4 py-3 border-b" style="border-color: #E8D5B0">
+          <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Orders Per Hour (Last 12h)</span>
+        </div>
+        <div class="px-4 pt-4 pb-3">
+          <div class="flex items-end gap-1.5 h-36">
+            @for (count of counts; track $index; let i = $index) {
+              <div class="flex-1 h-full flex flex-col justify-end gap-1">
+                <div class="w-full relative rounded-t-sm flex items-start justify-center pt-0.5"
+                  [style.height.%]="barHeight(count)" [style.background]="barColor(i)">
+                  @if (count > 0) {
+                    <span class="text-white font-bold absolute -top-4" style="font-size: 0.55rem"
+                      [style.color]="i === peakIdx ? '#7A3B1E' : '#9B7B5A'">
+                      {{ count }}
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          <div class="flex gap-1.5 mt-2">
+            @for (label of hourLabels; track $index; let i = $index) {
+              <div class="flex-1 text-center" style="font-size: 0.55rem; font-family: Lato"
+                [style.color]="i === 11 ? '#7A3B1E' : '#C4A882'" [style.font-weight]="i === 11 ? 700 : 400">
+                {{ label }}
+              </div>
+            }
+          </div>
+          <div class="flex gap-4 mt-3 pt-3 border-t" style="border-color: #E8D5B0">
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-sm" style="background: #7A3B1E"></div>
+              <span class="text-xs" style="color: #9B7B5A">Peak hour</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-sm" style="background: #C8955A"></div>
+              <span class="text-xs" style="color: #9B7B5A">Current hour</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category prep time reference -->
+      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+        <div class="px-4 py-3 border-b" style="border-color: #E8D5B0">
+          <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Category Prep Time Baselines</span>
+        </div>
+        <div class="px-4 py-4 space-y-3.5">
+          @for (cat of categories; track cat) {
+            <div class="flex items-center gap-3">
+              <span class="text-base w-6 flex-shrink-0">{{ emoji[cat] }}</span>
+              <span class="text-xs w-28 flex-shrink-0 truncate" style="color: #6B4C35; font-family: Lato">{{ cat }}</span>
+              <div class="flex-1 relative h-5 flex items-center">
+                <div class="absolute w-full h-2 rounded-full" style="background: #E8D5B0"></div>
+                <div class="absolute h-2 rounded-full" style="background: #7A3B1E"
+                  [style.left.%]="prepLeft(cat)" [style.width.%]="prepWidth(cat)"></div>
+              </div>
+              <span class="text-xs flex-shrink-0 font-bold" style="color: #5C2E0A; font-family: 'Playfair Display', serif; width: 52px">
+                {{ prep[cat].min }}–{{ prep[cat].max }} min
+              </span>
+            </div>
+          }
+          <div class="pt-2 border-t" style="border-color: #E8D5B0">
+            <div class="flex items-center gap-3 text-xs" style="color: #9B7B5A">
+              <div class="w-4 h-2 rounded-full" style="background: #E8D5B0"></div>
+              <span>0 min</span>
+              <div class="flex-1 h-px" style="background: #E8D5B0"></div>
+              <span>30 min</span>
+            </div>
+            <p class="text-xs mt-2 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+              These are kitchen-wide estimates, not per-cook targets.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live ticket category breakdown -->
+    <div class="mt-6 rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+      <div class="px-4 py-3 border-b" style="border-color: #E8D5B0">
+        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Live Category Load</span>
+        <span class="text-xs ml-2" style="color: #C4A882">Active tickets by category</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-px" style="background: #E8D5B0">
+        @for (cat of categories; track cat) {
+          <div class="px-4 py-3 flex items-center gap-3" style="background: #FFF8EE">
+            <span class="text-xl">{{ emoji[cat] }}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold truncate" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ cat }}</p>
+              <p class="text-xs" style="color: #9B7B5A">{{ prep[cat].min }}–{{ prep[cat].max }} min</p>
+            </div>
+            <span class="text-2xl font-bold" style="font-family: 'Playfair Display', serif"
+              [style.color]="catCount(cat) > 2 ? '#7A3B1E' : '#C4A882'">
+              {{ catCount(cat) }}
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Scope note -->
+    <div class="mt-5 px-4 py-3 rounded border flex gap-3" style="background: #F4ECD8; border-color: #C4A882">
+      <span class="text-lg">ℹ️</span>
+      <div>
+        <p class="text-xs font-bold" style="color: #5C2E0A">Scope Note</p>
+        <p class="text-xs mt-0.5" style="color: #9B7B5A">
+          This dashboard tracks order volume and category-level prep time estimates only. Per-cook speed, individual ticket performance metrics, and staff efficiency tracking are deliberately excluded from this system.
+        </p>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>

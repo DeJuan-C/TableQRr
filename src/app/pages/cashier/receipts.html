@@ -1,0 +1,283 @@
+<app-staff-layout subtitle="CASHIER TERMINAL" [nav]="nav">
+  <div class="flex gap-5" style="min-height: calc(100vh - 120px)">
+
+    <!-- LEFT: filters + list -->
+    <div class="flex-shrink-0 flex flex-col gap-3" style="width: 240px">
+
+      <h3 class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
+        Receipts
+      </h3>
+
+      <!-- Search bar -->
+      <div class="relative">
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style="color: #C4A882">🔍</span>
+        <input
+          type="text"
+          placeholder="Search ID, name, item…"
+          class="w-full text-xs pl-7 pr-7 py-2 rounded border outline-none"
+          style="background: #FFF8EE; color: #2C1810; font-family: Lato"
+          [style.border-color]="search ? '#7A3B1E' : '#C4A882'"
+          [ngModel]="search"
+          (ngModelChange)="onSearch($event)"
+        />
+        @if (search) {
+          <button (click)="search = ''"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
+            style="color: #C4A882">✕</button>
+        }
+      </div>
+
+      <!-- Calendar -->
+      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+        <!-- Month nav -->
+        <div class="flex items-center justify-between px-3 py-2 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+          <button (click)="prevMonth()"
+            class="text-xs px-2 py-0.5 rounded hover:opacity-70 transition-opacity"
+            style="color: #7A3B1E; font-weight: 700">‹</button>
+          <p class="text-xs font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">{{ monthLabel }}</p>
+          <button (click)="nextMonth()"
+            class="text-xs px-2 py-0.5 rounded hover:opacity-70 transition-opacity"
+            style="color: #7A3B1E; font-weight: 700">›</button>
+        </div>
+
+        <!-- Weekday headers -->
+        <div class="grid grid-cols-7 px-2 pt-2 pb-1">
+          @for (w of weekdays; track w) {
+            <div class="text-center" style="font-size: 0.6rem; color: #C4A882; font-family: Lato; font-weight: 700">
+              {{ w }}
+            </div>
+          }
+        </div>
+
+        <!-- Day cells -->
+        <div class="grid grid-cols-7 px-2 pb-2 gap-y-0.5">
+          @for (day of cells; track $index) {
+            @if (!day) {
+              <div></div>
+            } @else {
+              @let key = dayKey(day);
+              @let hasReceipts = activeDates.has(key);
+              @let isSelected = key === filterDate;
+              <button
+                [disabled]="!hasReceipts"
+                (click)="selectDate(isSelected ? '' : key)"
+                class="relative flex flex-col items-center justify-center rounded transition-all"
+                style="height: 28px; font-family: Lato; font-size: 0.7rem"
+                [style.background]="isSelected ? '#7A3B1E' : isToday(key) ? '#7A3B1E15' : 'transparent'"
+                [style.color]="isSelected ? '#FFF8EE' : hasReceipts ? '#2C1810' : '#D4C4B0'"
+                [style.font-weight]="hasReceipts ? 700 : 400"
+                [style.cursor]="hasReceipts ? 'pointer' : 'default'">
+                {{ day }}
+                <!-- Dot indicator for days with receipts -->
+                @if (hasReceipts && !isSelected) {
+                  <span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 rounded-full"
+                    style="width: 3px; height: 3px; background: #7A3B1E; opacity: 0.5"></span>
+                }
+              </button>
+            }
+          }
+        </div>
+
+        @if (filterDate) {
+          <div class="px-2 pb-2">
+            <button (click)="selectDate('')"
+              class="w-full text-xs py-1 rounded border text-center"
+              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+              ✕ Clear date filter
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Result count -->
+      <p class="text-xs" style="color: #C4A882">
+        {{ filtered.length }} receipt{{ filtered.length !== 1 ? 's' : '' }}{{ hasFilters ? ' matched' : ' total' }}
+      </p>
+
+      <!-- Transaction list -->
+      <div class="space-y-1.5 overflow-y-auto flex-1" style="max-height: calc(100vh - 440px)">
+        @if (filtered.length === 0) {
+          <p class="text-xs italic text-center py-4" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            No receipts found
+          </p>
+        }
+        @for (tx of filtered; track tx.id) {
+          <button (click)="selectedId = tx.id"
+            class="w-full text-left rounded border px-3 py-2 transition-all"
+            [style.background]="selectedId === tx.id ? '#7A3B1E12' : '#FFF8EE'"
+            [style.border-color]="selectedId === tx.id ? '#7A3B1E' : '#C4A882'">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ tx.id }}</p>
+                <p class="text-xs" style="color: #9B7B5A">{{ tx.tableLabel ?? tx.orderType }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+                  ₱{{ tx.total | num }}
+                </p>
+                <p class="text-xs" style="color: #C4A882">{{ formatTime(tx.settledAt) }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 mt-1 flex-wrap">
+              <span class="text-xs px-1.5 py-0.5 rounded-sm font-bold" style="background: #7A3B1E20; color: #7A3B1E; font-size: 0.6rem">
+                {{ tx.paymentMethod.toUpperCase() }}
+              </span>
+              @if (tx.discount) {
+                <span class="text-xs px-1.5 py-0.5 rounded-sm font-bold" style="background: #4A7C5920; color: #4A7C59; font-size: 0.6rem">
+                  {{ tx.discount.type.toUpperCase() }}
+                </span>
+              }
+            </div>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- RIGHT: Receipt view -->
+    <div class="flex-1">
+      @if (!selected) {
+        <div class="flex items-center justify-center h-full">
+          <p class="text-sm italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            Select a receipt to view
+          </p>
+        </div>
+      } @else {
+        @let tx = selected!;
+        <div class="max-w-xs">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                Receipt — {{ tx.id }}
+              </h2>
+              <p class="text-xs" style="color: #9B7B5A">
+                {{ formatDate(tx.settledAt) }} · {{ formatTime(tx.settledAt) }}
+              </p>
+            </div>
+            <button (click)="handlePrint()"
+              class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border transition-colors"
+              style="border-color: #C4A882; color: #5C2E0A; font-family: Lato; font-weight: 700">
+              🖨 Print PDF
+            </button>
+          </div>
+
+          <div #printArea class="rounded border p-5" style="background: #FFF8EE; border-color: #C4A882">
+            <!-- Receipt view -->
+            <div class="font-mono text-xs space-y-1" style="color: #2C1810">
+              <div class="text-center space-y-0.5 pb-3 border-b border-dashed" style="border-color: #C4A882">
+                <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; font-style: italic">
+                  Kainan Kay Aling Nene
+                </p>
+                <p style="color: #9B7B5A">Authentic Filipino Kitchen</p>
+                <p style="color: #9B7B5A">Baliuag, Bulacan</p>
+                <p style="color: #9B7B5A">Tel: (044) 766-1990</p>
+              </div>
+
+              <div class="py-2 space-y-0.5">
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Receipt No.</span>
+                  <span class="font-bold">{{ tx.id }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Date</span>
+                  <span>{{ formatDate(tx.settledAt) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Time</span>
+                  <span>{{ formatTime(tx.settledAt) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Order Type</span>
+                  <span class="capitalize">{{ tx.orderType }}</span>
+                </div>
+                @if (tx.tableLabel) {
+                  <div class="flex justify-between">
+                    <span style="color: #9B7B5A">Table / Name</span>
+                    <span>{{ tx.tableLabel }}</span>
+                  </div>
+                }
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Cashier</span>
+                  <span>{{ tx.cashier }}</span>
+                </div>
+              </div>
+
+              <div class="border-t border-b border-dashed py-2 space-y-1" style="border-color: #C4A882">
+                @for (item of tx.items; track item.menuItemId) {
+                  <div>
+                    <div class="flex justify-between">
+                      <span class="flex-1 pr-2 truncate">{{ item.name }}</span>
+                      <span>₱{{ item.price * item.quantity | num }}</span>
+                    </div>
+                    <span style="color: #9B7B5A; white-space: pre">  {{ item.quantity }} × ₱{{ item.price }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="py-2 space-y-0.5">
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Subtotal</span>
+                  <span>₱{{ tx.subtotal | num }}</span>
+                </div>
+                @if (tx.discount) {
+                  <div class="flex justify-between" style="color: #4A7C59">
+                    <span>{{ tx.discount.label }} ({{ tx.discount.percent }}%)</span>
+                    <span>−₱{{ tx.discountAmount | num }}</span>
+                  </div>
+                }
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">Service Charge</span>
+                  <span>₱{{ tx.serviceCharge | num }}</span>
+                </div>
+                <div class="flex justify-between font-bold text-sm pt-1 border-t border-dashed" style="border-color: #C4A882">
+                  <span>TOTAL</span>
+                  <span>₱{{ tx.total | num }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">{{ paymentLabel(tx.paymentMethod) }}</span>
+                  <span>₱{{ tx.amountTendered | num }}</span>
+                </div>
+                @if (tx.paymentMethod === 'cash' && tx.change > 0) {
+                  <div class="flex justify-between font-bold">
+                    <span>Change</span>
+                    <span>₱{{ tx.change | num }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="border-t border-dashed pt-2 space-y-0.5" style="border-color: #C4A882">
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">VATable Sales</span>
+                  <span>₱{{ round(tx.subtotal / 1.12) | num }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span style="color: #9B7B5A">12% VAT</span>
+                  <span>₱{{ round(tx.subtotal - tx.subtotal / 1.12) | num }}</span>
+                </div>
+                @if (tx.discount?.type === 'senior' && tx.discount?.idNumber) {
+                  <div class="mt-1 pt-1 border-t border-dashed" style="border-color: #C4A882">
+                    <p style="color: #9B7B5A">SC ID: {{ tx.discount?.idNumber }}</p>
+                    <p style="color: #9B7B5A">Rep. Act 9994 — 20% SC Discount</p>
+                  </div>
+                }
+                @if (tx.discount?.type === 'pwd' && tx.discount?.idNumber) {
+                  <div class="mt-1 pt-1 border-t border-dashed" style="border-color: #C4A882">
+                    <p style="color: #9B7B5A">PWD ID: {{ tx.discount?.idNumber }}</p>
+                    <p style="color: #9B7B5A">Rep. Act 10754 — 20% PWD Discount</p>
+                  </div>
+                }
+              </div>
+
+              <div class="text-center pt-3 border-t border-dashed space-y-0.5" style="border-color: #C4A882">
+                <p style="color: #9B7B5A">Thank you for dining with us!</p>
+                <p class="italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+                  Salamat at bumalik kayo!
+                </p>
+                <p style="color: #C4A882">** THIS SERVES AS YOUR OFFICIAL RECEIPT **</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</app-staff-layout>

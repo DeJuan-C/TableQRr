@@ -1,0 +1,92 @@
+<div class="rounded-sm flex flex-col overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+  [style.background]="s.cardBg" [style.border]="'1.5px solid ' + s.border">
+  <!-- Header -->
+  <div class="flex items-center justify-between px-3 py-2 border-b" [style.background]="s.headerBg" [style.border-color]="s.border">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold font-mono" style="color: #5C2E0A">{{ ticket().id }}</span>
+      <span class="text-xs px-1.5 py-0.5 rounded-sm font-bold"
+        style="color: #FFF8EE; font-size: 0.6rem; letter-spacing: 0.07em"
+        [style.background]="ticket().source === 'pos' ? '#7A3B1E' : '#C8955A'">
+        {{ ticket().source === 'pos' ? '⊞ POS' : '📱 QR' }}
+      </span>
+      @if (delayed) {
+        <span class="text-xs px-1.5 py-0.5 rounded-sm font-bold animate-pulse"
+          style="background: #C0392B; color: #fff; font-size: 0.6rem; letter-spacing: 0.07em">
+          ⚠ LATE
+        </span>
+      }
+    </div>
+    <span class="font-mono text-xs font-bold" [style.color]="delayed ? '#C0392B' : '#9B7B5A'">
+      {{ elapsedLabel }}
+    </span>
+  </div>
+
+  <!-- Table + received time -->
+  <div class="flex items-center justify-between px-3 pt-2.5 pb-1">
+    <span class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">
+      {{ ticket().tableLabel }}
+    </span>
+    <span class="text-xs" style="color: #9B7B5A">In at {{ formatTime(ticket().receivedAt) }}</span>
+  </div>
+
+  <!-- Prep progress bar -->
+  <div class="px-3 pb-2">
+    <div class="w-full rounded-full overflow-hidden" style="background: #E8D5B0; height: 4px">
+      <div class="h-full rounded-full transition-all" [style.width.%]="progress" [style.background]="s.barColor"></div>
+    </div>
+    <div class="flex justify-between mt-0.5">
+      <span style="font-size: 0.6rem; color: #C4A882">0 min</span>
+      <span style="font-size: 0.6rem" [style.color]="delayed ? '#C0392B' : '#9B7B5A'" [style.font-weight]="delayed ? 700 : 400">
+        {{ delayed ? '+' + (elapsed - ticket().expectedPrepMinutes) + 'm over' : ticket().expectedPrepMinutes + 'm est.' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Items by category -->
+  <div class="flex-1 px-3 pb-3 space-y-2.5">
+    @for (g of groups; track g[0]) {
+      <div>
+        <div class="flex items-center gap-1.5 mb-1">
+          <span style="font-size: 0.75rem">{{ emoji[g[0]] }}</span>
+          <span class="text-xs font-bold tracking-wider" style="color: #9B7B5A; font-size: 0.6rem; letter-spacing: 0.1em">
+            {{ g[0].toUpperCase() }}
+          </span>
+          <div class="flex-1 h-px" style="background: #E8D5B0"></div>
+        </div>
+        @for (item of g[1]; track item.menuItemId) {
+          <div class="flex items-baseline justify-between pl-3">
+            <span class="text-sm" style="font-family: Lato, sans-serif" [style.color]="s.text">{{ item.name }}</span>
+            <span class="font-bold text-sm ml-2 flex-shrink-0" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+              ×{{ item.quantity }}
+            </span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Status log -->
+  <div class="px-3 pb-1 flex gap-3 flex-wrap border-t" style="border-color: #E8D5B0; padding-top: 6px">
+    @for (h of ticket().statusHistory; track $index) {
+      <span style="font-size: 0.6rem; color: #C4A882">
+        {{ capitalize(h.status) }} · {{ formatTime(h.at) }}
+      </span>
+    }
+  </div>
+
+  <!-- Action button -->
+  @if (ticket().status !== 'served') {
+    <button (click)="advance.emit()"
+      class="w-full py-2.5 text-sm font-bold transition-all hover:opacity-90 active:scale-95 border-t"
+      style="font-family: Lato, sans-serif"
+      [style.background]="s.btnBg" [style.color]="s.btnText" [style.border-color]="s.border">
+      {{ nextLabel[ticket().status] }}
+    </button>
+  } @else {
+    <div class="py-2 text-center border-t" style="border-color: #C4A882">
+      <span class="text-xs font-bold" style="color: #9B7B5A">
+        ✓ Served · {{ formatTime(lastAt) }}
+      </span>
+    </div>
+  }
+</div>

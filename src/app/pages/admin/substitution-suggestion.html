@@ -1,0 +1,265 @@
+<app-admin-layout>
+  <div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+      <p class="text-xs tracking-widest uppercase mb-1" style="color: #9B7B5A; letter-spacing: 0.18em">Kitchen Module</p>
+      <h2 class="text-3xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        Substitution Suggestion
+      </h2>
+      <p class="text-xs mt-1 max-w-xl" style="color: #9B7B5A">
+        When an item becomes unavailable, automatically recommends the top 1–2 similar available dishes. Head Chef configures preferred substitutes and exclusion rules.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Left: unavailable items + suggestions -->
+      <div class="lg:col-span-2 space-y-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
+            Unavailable Items ({{ unavailableItems.length }})
+          </p>
+          @if (unavailableItems.length === 0) {
+            <span class="text-xs italic" style="color: #4A7C59; font-family: 'IM Fell English', serif">All items currently available</span>
+          }
+        </div>
+
+        @if (unavailableItems.length === 0) {
+          <div class="rounded border px-6 py-12 text-center" style="background: #FFF8EE; border-color: #C4A882">
+            <p class="text-3xl mb-2">✅</p>
+            <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              Full menu is available
+            </p>
+            <p class="text-xs mt-1 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">
+              Substitution suggestions will appear here when items go unavailable
+            </p>
+          </div>
+        } @else {
+          @for (unavail of unavailableItems; track unavail.id) {
+            @let suggestions = getSuggestions(unavail);
+            @let rule = ruleFor(unavail.id);
+            @let accepted = acceptedMap[unavail.id];
+            <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+              <!-- Unavailable item header -->
+              <div class="px-5 py-3 border-b flex items-center gap-3" style="border-color: #E8D5B0; background: #C0392B08">
+                <img [src]="unavail.image" [alt]="unavail.name"
+                  class="w-10 h-10 rounded object-cover flex-shrink-0" style="border: 1px solid #C4A882" />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                      {{ unavail.name }}
+                    </p>
+                    <span class="text-xs px-1.5 py-0.5 rounded font-bold" style="background: #C0392B20; color: #C0392B; font-size: 0.6rem">
+                      UNAVAILABLE
+                    </span>
+                  </div>
+                  <p class="text-xs" style="color: #9B7B5A">
+                    {{ unavail.category }} · ₱{{ unavail.price }}
+                    @if (rule?.preferredSubstituteId) {
+                      <span class="ml-2" style="color: #7A3B1E">· Preferred sub configured</span>
+                    }
+                  </p>
+                </div>
+                <button (click)="toggleConfig(unavail.id)"
+                  class="text-xs px-2.5 py-1 rounded border"
+                  style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+                  ⚙ Config
+                </button>
+              </div>
+
+              <!-- Suggestions -->
+              @if (suggestions.length === 0) {
+                <p class="px-5 py-4 text-xs italic" style="color: #C4A882">
+                  No suitable substitutes available right now
+                </p>
+              } @else {
+                <div class="px-5 py-4">
+                  <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #9B7B5A">
+                    Suggested Substitutes
+                  </p>
+                  <div class="space-y-2">
+                    @for (sub of suggestions; track sub.id; let idx = $index) {
+                      @let isPreferred = rule?.preferredSubstituteId === sub.id;
+                      @let isAccepted = accepted === sub.id;
+                      <div class="flex items-center gap-3 rounded border px-3 py-2.5"
+                        [style.border-color]="isAccepted ? '#4A7C59' : isPreferred ? '#7A3B1E50' : '#E8D5B0'"
+                        [style.background]="isAccepted ? '#4A7C5910' : isPreferred ? '#7A3B1E08' : 'transparent'">
+                        <span class="text-base font-bold" style="color: #C4A882; font-family: 'Playfair Display', serif">
+                          {{ idx + 1 }}
+                        </span>
+                        <img [src]="sub.image" [alt]="sub.name"
+                          class="w-9 h-9 rounded object-cover flex-shrink-0" style="border: 1px solid #E8D5B0" />
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-1.5">
+                            <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                              {{ sub.name }}
+                            </p>
+                            @if (isPreferred) {
+                              <span class="text-xs px-1 py-0 rounded font-bold" style="background: #7A3B1E20; color: #7A3B1E; font-size: 0.55rem">
+                                PREFERRED
+                              </span>
+                            }
+                          </div>
+                          <p class="text-xs" style="color: #9B7B5A">
+                            {{ sub.category }} · ₱{{ sub.price }}
+                          </p>
+                        </div>
+                        @if (!accepted) {
+                          <button (click)="handleAccept(unavail.id, unavail.name, sub.id, ids(suggestions))"
+                            class="text-xs px-2.5 py-1 rounded font-bold transition-all hover:opacity-80"
+                            style="background: #4A7C59; color: #FFF8EE; font-family: Lato">
+                            Accept
+                          </button>
+                        } @else if (isAccepted) {
+                          <span class="text-xs font-bold" style="color: #4A7C59">✓ Accepted</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                  @if (!accepted) {
+                    <button (click)="handleSkip(unavail.id, unavail.name, ids(suggestions))"
+                      class="mt-2 text-xs" style="color: #C4A882; font-family: Lato">
+                      Skip — proceed without substitute
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- Substitution log -->
+        @if (log.length > 0) {
+          <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+            <div class="px-5 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+              <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Substitution Log</p>
+            </div>
+            <div class="divide-y overflow-y-auto" style="max-height: 220px; border-color: #E8D5B0">
+              @for (e of log; track $index) {
+                <div class="px-5 py-2.5 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-xs font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">
+                      {{ e.unavailableName }}
+                    </p>
+                    <p class="text-xs" style="color: #9B7B5A">
+                      {{ fmtClock(e.at) }}@if (acceptedName(e); as name) { → {{ name }}}
+                    </p>
+                  </div>
+                  <span class="text-xs px-2 py-0.5 rounded font-bold"
+                    [style.background]="e.acceptedId ? '#4A7C5920' : '#C0392B12'"
+                    [style.color]="e.acceptedId ? '#4A7C59' : '#C0392B'"
+                    [style.border]="'1px solid ' + (e.acceptedId ? '#4A7C5940' : '#C0392B30')">
+                    {{ e.acceptedId ? 'Accepted' : 'Skipped' }}
+                  </span>
+                </div>
+              }
+            </div>
+            <div class="px-5 py-2 border-t flex gap-4 text-xs" style="border-color: #E8D5B0; color: #9B7B5A">
+              <span>Accepted: <strong style="color: #4A7C59">{{ acceptedCount }}</strong></span>
+              <span>Skipped: <strong style="color: #C0392B">{{ skippedCount }}</strong></span>
+              <span>Acceptance rate: <strong style="color: #2C1810">{{ acceptanceRate }}%</strong></span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Right: Head Chef config panel -->
+      <div class="lg:col-span-1">
+        <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #9B7B5A">
+          Head Chef Configuration
+        </p>
+
+        @if (!configItem) {
+          <div class="rounded border px-4 py-6 text-center" style="background: #FFF8EE; border-color: #C4A882">
+            <p class="text-2xl mb-2">⚙</p>
+            <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              Select an item to configure
+            </p>
+            <p class="text-xs mt-1 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">
+              Click ⚙ Config on any unavailable item to set preferred substitutes and exclusions
+            </p>
+          </div>
+        } @else {
+          @let ci = configItem!;
+          <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #7A3B1E">
+            <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: #7A3B1E10">
+              <p class="text-xs font-bold" style="color: #7A3B1E; font-family: 'Playfair Display', serif">
+                {{ ci.name }}
+              </p>
+              <p class="text-xs" style="color: #9B7B5A">{{ ci.category }}</p>
+            </div>
+
+            <div class="px-4 py-4 space-y-4">
+              <!-- Preferred substitute -->
+              <div>
+                <label class="text-xs font-bold tracking-widest uppercase block mb-2" style="color: #9B7B5A">
+                  Preferred Substitute
+                </label>
+                <select
+                  class="w-full text-xs px-2 py-2 rounded border outline-none"
+                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                  [ngModel]="configRule?.preferredSubstituteId ?? ''"
+                  (ngModelChange)="setPreferred(ci.id, $event || undefined)">
+                  <option value="">— None —</option>
+                  @for (a of preferredOptions(ci.id); track a.id) {
+                    <option [value]="a.id">{{ a.name }}</option>
+                  }
+                </select>
+                <p class="text-xs mt-1 italic" style="color: #C4A882">Ranks first regardless of category</p>
+              </div>
+
+              <!-- Exclusion list -->
+              <div>
+                <label class="text-xs font-bold tracking-widest uppercase block mb-2" style="color: #9B7B5A">
+                  Exclude from Suggestions
+                </label>
+                <div class="space-y-1 max-h-48 overflow-y-auto">
+                  @for (a of excludeOptions(ci.id); track a.id) {
+                    <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                      <input type="checkbox" [checked]="isExcluded(a.id)"
+                        (change)="toggleExclude(ci.id, a.id)"
+                        style="accent-color: #7A3B1E" />
+                      <span class="text-xs" style="font-family: Lato" [style.color]="isExcluded(a.id) ? '#C0392B' : '#2C1810'">
+                        {{ a.name }}
+                      </span>
+                      <span class="text-xs ml-auto" style="color: #C4A882">{{ a.category }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+
+              <button (click)="configItemId = null"
+                class="w-full py-2 text-xs font-bold rounded"
+                style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+                Save &amp; Close
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- All-item config quick access -->
+        <div class="mt-4 rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+          <div class="px-4 py-2 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+            <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">All Menu Items</p>
+          </div>
+          <div class="divide-y overflow-y-auto" style="max-height: 220px; border-color: #E8D5B0">
+            @for (m of menuItems; track m.id) {
+              <button (click)="configItemId = m.id"
+                class="w-full text-left px-4 py-2 flex items-center justify-between gap-2 hover:opacity-80 transition-opacity">
+                <span class="text-xs truncate" style="color: #2C1810; font-family: Lato">{{ m.name }}</span>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  @if (!m.available) {
+                    <span class="text-xs rounded px-1" style="background: #C0392B20; color: #C0392B; font-size: 0.55rem; font-weight: 700">OUT</span>
+                  }
+                  @if (hasConfig(m.id)) {
+                    <span class="text-xs" style="color: #7A3B1E">⚙</span>
+                  }
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>

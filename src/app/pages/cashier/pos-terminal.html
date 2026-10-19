@@ -1,0 +1,201 @@
+<app-staff-layout subtitle="CASHIER TERMINAL" [nav]="nav">
+  <!-- Kiosk modal — shown until order type is chosen -->
+  @if (!orderType) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center"
+      style="background: rgba(44,24,16,0.75); backdrop-filter: blur(4px)">
+      <div class="rounded-sm border shadow-2xl fade-up overflow-hidden"
+        style="background: #FFF8EE; border-color: #C4A882; width: 440px; max-width: 95vw">
+
+        <!-- Modal header -->
+        <div class="px-8 py-6 text-center border-b" style="border-color: #E8D5B0; background: linear-gradient(135deg, #5C2E0A, #7A3B1E)">
+          <p class="text-xs tracking-widest mb-1" style="color: #C4A882; letter-spacing: 0.2em">KAINAN KAY ALING NENE</p>
+          <h2 class="text-2xl font-bold text-white" style="font-family: 'Playfair Display', serif">
+            How will you be dining?
+          </h2>
+          <p class="text-xs mt-1 opacity-60" style="color: #E8D5B0">
+            An order ID will be generated automatically
+          </p>
+        </div>
+
+        <div class="px-8 py-8">
+          <div class="grid grid-cols-2 gap-4">
+            @for (opt of orderTypeOptions; track opt.type) {
+              <button (click)="handleOrderTypeSelect(opt.type, opt.genId())"
+                class="flex flex-col items-center gap-3 rounded border py-8 px-4 transition-all hover:shadow-md group"
+                style="background: #FFF8EE; border-color: #C4A882">
+                <span class="text-5xl">{{ opt.icon }}</span>
+                <div class="text-center">
+                  <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ opt.label }}</p>
+                  <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ opt.sub }}</p>
+                  <p class="text-xs mt-1.5 font-bold px-2 py-0.5 rounded-sm inline-block"
+                    style="background: #7A3B1E15; color: #7A3B1E; font-family: Lato; letter-spacing: 0.05em">
+                    Auto-ID · {{ opt.prefix }}-####
+                  </p>
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="flex gap-6" style="min-height: calc(100vh - 120px)">
+    <!-- LEFT: Menu browser -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+            POS Terminal
+          </h2>
+          @if (orderType) {
+            <p class="text-xs mt-0.5" style="color: #9B7B5A">
+              {{ orderType === 'dine-in' ? '🍽 Dine-in · ' + tableLabel : '🥡 Take-out · ' + tableLabel }}
+              <button (click)="resetOrderType()"
+                class="ml-2 underline"
+                style="color: #C4A882; font-family: Lato">
+                change
+              </button>
+            </p>
+          }
+        </div>
+      </div>
+
+      <!-- Search -->
+      <input
+        class="w-full text-sm px-3 py-2 rounded border outline-none mb-3"
+        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        placeholder="Search menu..."
+        [(ngModel)]="search"
+      />
+
+      <!-- Category tabs -->
+      <div class="flex overflow-x-auto border-b mb-4 gap-0" style="border-color: #C4A882">
+        @for (cat of categories; track cat) {
+          <button (click)="selectCategory(cat)"
+            class="flex-shrink-0 px-3 py-2 text-xs font-bold whitespace-nowrap transition-colors"
+            style="font-family: Lato"
+            [style.color]="activeCategory === cat ? '#7A3B1E' : '#9B7B5A'"
+            [style.border-bottom]="activeCategory === cat ? '2px solid #7A3B1E' : '2px solid transparent'"
+            [style.background]="activeCategory === cat ? '#F4ECD8' : 'transparent'">
+            {{ emoji[cat] }} {{ cat }}
+          </button>
+        }
+      </div>
+
+      <!-- Menu grid — taller cards -->
+      <div class="grid grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto pr-1" style="max-height: calc(100vh - 280px)">
+        @for (item of filteredItems; track item.id) {
+          @let line = inCart(item.id);
+          <button (click)="addItem(item)"
+            class="rounded border text-left transition-all hover:shadow-md overflow-hidden relative"
+            style="background: #FFF8EE"
+            [style.border-color]="line ? '#7A3B1E' : '#C4A882'"
+            [style.box-shadow]="line ? '0 0 0 2px #7A3B1E30' : 'none'">
+            <!-- Taller image -->
+            <div class="relative w-full" style="height: 140px">
+              <img [src]="item.image" [alt]="item.name" class="w-full h-full object-cover" />
+              @if (line) {
+                <div class="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm shadow"
+                  style="background: #7A3B1E; color: #FFF8EE">
+                  {{ line.qty }}
+                </div>
+              }
+              <!-- Price overlay on image -->
+              <div class="absolute bottom-0 right-0 px-2 py-0.5" style="background: rgba(44,24,16,0.75)">
+                <span class="text-xs font-bold text-white" style="font-family: 'Playfair Display', serif">
+                  ₱{{ item.price }}
+                </span>
+              </div>
+            </div>
+            <div class="px-3 py-2">
+              <p class="text-sm font-bold leading-snug" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                {{ item.name }}
+              </p>
+              <p class="text-xs mt-0.5 truncate" style="color: #9B7B5A">{{ item.description.split(',')[0] }}</p>
+            </div>
+          </button>
+        }
+        @if (filteredItems.length === 0) {
+          <p class="col-span-3 text-sm text-center py-10 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">
+            No available items in this category.
+          </p>
+        }
+      </div>
+    </div>
+
+    <!-- RIGHT: Order summary — wider and more breathable -->
+    <div class="w-80 flex-shrink-0 flex flex-col rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+      <div class="px-5 py-4 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Current Order</span>
+        <p class="text-sm font-bold mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+          @if (orderType) {
+            {{ orderType === 'dine-in' ? '🍽 ' + tableLabel : '🥡 ' + tableLabel }}
+          } @else {
+            <span style="color: #C4A882; font-style: italic; font-family: 'IM Fell English'">No order type selected</span>
+          }
+        </p>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        @if (cart.length === 0) {
+          <p class="text-center py-10 text-sm italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            No items yet.<br />Select from the menu.
+          </p>
+        } @else {
+          <div class="divide-y" style="border-color: #E8D5B0">
+            @for (c of cart; track c.item.id) {
+              <div class="flex items-center gap-3 px-4 py-3">
+                <img [src]="c.item.image" [alt]="c.item.name" class="w-10 h-10 rounded object-cover flex-shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold truncate" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                    {{ c.item.name }}
+                  </p>
+                  <p class="text-xs" style="color: #9B7B5A">₱{{ c.item.price }}</p>
+                </div>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  <button (click)="setQty(c.item.id, c.qty - 1)"
+                    class="w-7 h-7 rounded-full flex items-center justify-center font-bold transition-colors"
+                    style="background: #E8D5B0; color: #2C1810">−</button>
+                  <span class="w-5 text-center text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ c.qty }}</span>
+                  <button (click)="setQty(c.item.id, c.qty + 1)"
+                    class="w-7 h-7 rounded-full flex items-center justify-center font-bold transition-colors"
+                    style="background: #7A3B1E; color: #FFF8EE">+</button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Totals -->
+      <div class="border-t px-5 py-4 space-y-2" style="border-color: #C4A882">
+        <div class="flex justify-between text-sm" style="color: #9B7B5A">
+          <span>Subtotal</span><span>₱{{ subtotal | num }}</span>
+        </div>
+        <div class="flex justify-between text-sm" style="color: #9B7B5A">
+          <span>Service (5%)</span><span>₱{{ serviceCharge | num }}</span>
+        </div>
+        <div class="flex justify-between font-bold text-lg pt-2 border-t"
+          style="border-color: #E8D5B0; font-family: 'Playfair Display', serif; color: #2C1810">
+          <span>Total</span><span style="color: #7A3B1E">₱{{ total | num }}</span>
+        </div>
+      </div>
+
+      <!-- Confirm — goes to payment/bill settlement -->
+      <button (click)="handleConfirm()" [disabled]="!cart.length || !orderType"
+        class="w-full py-4 text-base font-bold transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
+        style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif">
+        Confirm &amp; Pay →
+      </button>
+
+      @if (cart.length > 0) {
+        <button (click)="cart = []"
+          class="w-full py-2 text-xs border-t transition-colors"
+          style="color: #9B7B5A; border-color: #E8D5B0">
+          Clear order
+        </button>
+      }
+    </div>
+  </div>
+</app-staff-layout>

@@ -1,0 +1,118 @@
+<app-admin-layout>
+  <div class="fade-up">
+    <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-3xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+          Stock Control
+        </h2>
+        <p class="text-sm mt-1" style="color: #9B7B5A">
+          Availability is automatically derived from live ingredient stock levels. When a mapped ingredient goes Critical, the dish is marked unavailable on the customer menu.
+        </p>
+      </div>
+      @if (unavailableCount > 0) {
+        <div class="flex items-center gap-2 px-3 py-2 rounded border" style="background: #7A3B1E15; border-color: #7A3B1E50">
+          <span class="text-lg">⚠️</span>
+          <span class="text-sm font-bold" style="color: #7A3B1E">
+            {{ unavailableCount }} item{{ unavailableCount !== 1 ? 's' : '' }} unavailable
+          </span>
+        </div>
+      }
+    </div>
+
+    <!-- Sync status banner -->
+    <div class="flex items-center gap-2 px-4 py-2 rounded border mb-5" style="background: #4A7C5910; border-color: #4A7C5940">
+      <span class="w-2 h-2 rounded-full inline-block animate-pulse" style="background: #4A7C59"></span>
+      <span class="text-xs font-bold" style="color: #4A7C59">Auto-sync active</span>
+      <span class="text-xs" style="color: #9B7B5A">
+        — Synced from Ingredient Master. Manage stock levels there to update availability here.
+      </span>
+    </div>
+
+    <!-- Search -->
+    <div class="mb-5">
+      <input
+        class="w-full sm:w-72 text-sm px-3 py-2 rounded border outline-none"
+        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        placeholder="Search dishes..."
+        [(ngModel)]="search"
+      />
+    </div>
+
+    <!-- Category tabs -->
+    <div class="flex overflow-x-auto gap-0 border-b mb-5" style="border-color: #C4A882">
+      @for (cat of tabs; track cat) {
+        <button (click)="activeCategory = cat"
+          class="flex-shrink-0 px-4 py-2 text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5"
+          style="font-family: Lato"
+          [style.color]="activeCategory === cat ? '#7A3B1E' : '#9B7B5A'"
+          [style.border-bottom]="activeCategory === cat ? '2px solid #7A3B1E' : '2px solid transparent'"
+          [style.background]="activeCategory === cat ? '#F4ECD8' : 'transparent'">
+          @if (cat !== 'All') { <span>{{ emoji[cat] }}</span> }
+          {{ cat }}
+          @if (tabCount(cat) > 0) {
+            <span class="px-1 rounded-full text-white font-bold" style="background: #7A3B1E; font-size: 0.6rem">
+              {{ tabCount(cat) }}
+            </span>
+          }
+        </button>
+      }
+    </div>
+
+    <!-- Stock grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      @for (entry of filtered; track entry.id) {
+        <div class="rounded border flex items-center gap-0 overflow-hidden"
+          [style.background]="entry.available ? '#FFF8EE' : '#F4ECD8'"
+          [style.border-color]="entry.available ? '#C4A882' : '#7A3B1E50'">
+          <!-- Thumbnail -->
+          <div class="relative flex-shrink-0 w-14 h-14">
+            <img [src]="entry.image" [alt]="entry.name" class="w-full h-full object-cover"
+              [style.filter]="entry.available ? 'none' : 'grayscale(70%) opacity(0.6)'" />
+            @if (!entry.available) {
+              <div class="absolute inset-0 flex items-center justify-center" style="background: #7A3B1E60">
+                <span class="text-white font-bold" style="font-size: 0.55rem; letter-spacing: 0.04em">UBOS</span>
+              </div>
+            }
+          </div>
+
+          <div class="flex-1 min-w-0 pl-3 pr-3 py-2">
+            <p class="text-sm font-bold truncate" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              {{ entry.name }}
+            </p>
+            <p class="text-xs mt-0.5 flex items-center gap-1" style="color: #9B7B5A">
+              <span>{{ emoji[entry.category] }}</span>
+              {{ entry.category }}
+            </p>
+            @if (!entry.available && entry.unavailableReason) {
+              <p class="text-xs mt-0.5" style="color: #7A3B1E; font-family: Lato">
+                ↳ {{ entry.unavailableReason }} critical
+              </p>
+            }
+          </div>
+
+          <!-- Status badge only — no toggle -->
+          <span class="flex-shrink-0 mr-3 text-xs px-2 py-0.5 rounded-sm font-bold"
+            style="font-family: Lato; font-size: 0.6rem; letter-spacing: 0.07em"
+            [style.background]="entry.available ? '#4A7C5920' : '#7A3B1E20'"
+            [style.color]="entry.available ? '#4A7C59' : '#7A3B1E'">
+            {{ entry.available ? 'AVAILABLE' : 'UBOS' }}
+          </span>
+        </div>
+      }
+    </div>
+
+    @if (filtered.length === 0) {
+      <p class="text-center py-8 italic text-sm" style="color: #9B7B5A; font-family: 'IM Fell English', serif">
+        No dishes found.
+      </p>
+    }
+
+    <!-- Legend -->
+    <div class="mt-8 px-4 py-3 rounded border" style="background: #F4ECD8; border-color: #C4A882">
+      <p class="text-xs font-bold mb-1" style="color: #5C2E0A">How auto-sync works</p>
+      <p class="text-xs" style="color: #9B7B5A">
+        Each dish is linked to its ingredients via <strong>Recipe Mapping</strong>. When any mapped ingredient drops to <strong>Critical</strong> level in the Ingredient Master, that dish is automatically marked <em>Ubos</em> and the customer menu hides its Add button — no manual toggling needed.
+      </p>
+    </div>
+  </div>
+</app-admin-layout>
